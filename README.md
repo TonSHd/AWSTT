@@ -18,7 +18,9 @@ You can download the tar.gz file from releases
 ### Build from source
 
 **git clone https://github.com/TonSHd/AWSTT.git**
+ 
 **cd AWSTT**
+ 
 **cargo build --release**
 
 Made with passion for networking and open technology.
