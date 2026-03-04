@@ -29,4 +29,4 @@ Bitcoin (BTC) Address: bc1qz6v0tl48hpv075l0u3lww7mj4dj5xarjtkwa2x
 Donations are optional and do not unlock features.
 AWSTT will always remain free and open.
 
-Tank you and enjoy!
+Thank you and enjoy!
