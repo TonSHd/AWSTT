@@ -13,13 +13,13 @@ It provides advanced diagnostics and signal analysis
 ## Installation
 
 You can download the tar.gz file from releases
-run tar -xzf [The tar.gz from releases]
+**Then run tar -xzf [The tar.gz from releases]**
 
 ### Build from source
 
-git clone https://github.com/TonSHd/AWSTT.git
+**git clone https://github.com/TonSHd/AWSTT.git
 cd AWSTT
-cargo build --release
+cargo build --release**
 
 Made with passion for networking and open technology.
 
