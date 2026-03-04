@@ -24,6 +24,9 @@ You can download the tar.gz file from releases
  
 **cargo build --release**
 
+## Preview
+![AWSTT Screenshot](awstt-main.png)
+
 Made with passion for networking and open technology.
 
 If you enjoy AWSTT and would like to support its development, you can donate:
