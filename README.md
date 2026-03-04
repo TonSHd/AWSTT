@@ -13,6 +13,7 @@ It provides advanced diagnostics and signal analysis
 ## Installation
 
 You can download the tar.gz file from releases
+ 
 **Then run tar -xzf [The tar.gz from releases]**
 
 ### Build from source
