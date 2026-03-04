@@ -1475,10 +1475,10 @@ impl eframe::App for App {
 fn main() -> eframe::Result<()> {
     let data = Arc::new(Mutex::new(LiveStats::default()));
     let d2   = data.clone();
-    eframe::run_native("LAN Signal Analyzer",
+    eframe::run_native("AWSTT",
         eframe::NativeOptions {
             viewport: egui::ViewportBuilder::default()
-                .with_title("LAN Signal Analyzer")
+                .with_title("AWSTT")
                 .with_inner_size([1440.0, 880.0])
                 .with_min_inner_size([1000.0, 650.0]),
             ..Default::default()
