@@ -27,6 +27,8 @@
 
 ```bash
 tar -xzf [The tar.gz from releases]
+cd AWSTT
+cargo run
 ```
 
 ---
@@ -36,7 +38,7 @@ tar -xzf [The tar.gz from releases]
 ```bash
 git clone https://github.com/TonSHd/AWSTT.git
 cd AWSTT
-cargo build --release
+cargo run
 ```
 
 ---
