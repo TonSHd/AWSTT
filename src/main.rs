@@ -1055,7 +1055,7 @@ impl eframe::App for App {
                         let dot=if is_on{Color32::from_rgb(0,255,120)}else{Color32::from_rgb(45,55,72)};
                         ui.painter().circle_filled(ui.cursor().min+Vec2::new(5.0,7.0),4.0,dot);
                         ui.add_space(13.0);
-                        ui.label(RichText::new(if is_on{"Listening..."}else{"Quiet"}).size(9.0).color(dot));
+                        ui.label(RichText::new(if is_on{"Listening..."}else{"Off"}).size(9.0).color(dot));
                     });
                     ui.add_space(3.0);
                     ui.label(RichText::new(format!("Up for       {}",fmt_up(self.uptime.elapsed()))).size(9.0).monospace().color(Color32::from_rgb(50,66,88)));
@@ -1077,9 +1077,9 @@ impl eframe::App for App {
                 });
                 ui.add_space(7.0);
                 card(ui,Color32::from_rgb(18,24,38),|ui|{
-                    section(ui,"Wi-Fi Connections");
+                    section(ui,"Hello!");
                     if associated_wifi.is_empty() {
-                        ui.label(RichText::new("No Wi-Fi devices spotted.").size(9.0).monospace().color(Color32::from_rgb(90,110,140)));
+                        ui.label(RichText::new("-------------------").size(9.0).monospace().color(Color32::from_rgb(90,110,140)));
                     } else {
                         egui::ScrollArea::vertical().id_source("assoc_wifi_select").max_height(118.0).show(ui, |ui| {
                             for dev in &associated_wifi {
@@ -1121,7 +1121,7 @@ impl eframe::App for App {
                 });
                 ui.add_space(5.0);
                 card(ui,Color32::from_rgb(18,24,38),|ui|{
-                    section(ui,"Wave Shape");
+                    section(ui,"Graph Sound Type");
                     ui.horizontal_wrapped(|ui|{for w in[Waveform::Sine,Waveform::Square,Waveform::Saw,Waveform::Triangle]{if pill(ui,w.label(),wfm==w,pri){*self.waveform.lock()=w;}}});
                 });
                 ui.add_space(5.0);
@@ -1135,7 +1135,7 @@ impl eframe::App for App {
                 });
                 ui.add_space(5.0);
                 card(ui,Color32::from_rgb(18,24,38),|ui|{
-                    section(ui,"Update Speed");
+                    section(ui,"Graph Speed");
                     ui.horizontal_wrapped(|ui|{for(l,v) in[("Slower",0.5f32),("Normal",1.0),("Fast",2.0),("Very Fast",5.0)]{if pill(ui,l,(sp-v).abs()<0.01,pri){*self.speed.lock()=v;}}});
                 });
                 ui.add_space(5.0);
@@ -1180,9 +1180,9 @@ impl eframe::App for App {
                 ui.add_space(4.0); ui.separator(); ui.add_space(6.0);
 
                 ui.horizontal(|ui|{
-                    stat_tile(ui,"Flow",&fmt_bps(now_bps),&if self.show_peaks{format!("peak {}",fmt_bps(pk_bps))}else{String::new()},pri);
+                    stat_tile(ui,"Network Flow",&fmt_bps(now_bps),&if self.show_peaks{format!("peak {}",fmt_bps(pk_bps))}else{String::new()},pri);
                     ui.add_space(3.0);
-                    stat_tile(ui,"Health",&format!("{:.1} dBm",now_rssi),&if self.show_peaks{format!("peak {:.1}",pk_rssi)}else{String::new()},sec);
+                    stat_tile(ui,"Health(NOT FOR LAN)",&format!("{:.1} dBm",now_rssi),&if self.show_peaks{format!("peak {:.1}",pk_rssi)}else{String::new()},sec);
                     ui.add_space(3.0);
                     stat_tile(ui,"Packets",&format!("{:.0}",now_pps),"/sec",acc);
                     ui.add_space(3.0);
@@ -1442,13 +1442,13 @@ impl eframe::App for App {
                                 });
                                 ui.add_space(5.0);
                                 card(ui,Color32::from_rgb(14,20,34),|ui|{
-                                    section(ui,"Under the Hood");
+                                    section(ui,"Stat");
                                     let gw=get_gateway().unwrap_or_else(||"unknown".to_string());
                                     for(l,v,c) in[
                                         ("GATEWAY", gw.clone(), Color32::from_rgb(120,150,190)),
                                         ("INTERFACE", self.selected_iface.lock().clone(), Color32::from_rgb(120,150,190)),
-                                        ("FLOW RATE", format!("{:.2} MB/s",now_bps/1e6), pri),
-                                        ("GLITCHES", format!("{:.1}/s",now_errs), if now_errs>10.0{Color32::from_rgb(220,75,55)}else{Color32::from_rgb(0,200,100)}),
+                                        ("NETWORK FLOW RATE", format!("{:.2} MB/s",now_bps/1e6), pri),
+                                        ("ERROR", format!("{:.1}/s",now_errs), if now_errs>10.0{Color32::from_rgb(220,75,55)}else{Color32::from_rgb(0,200,100)}),
                                         ("VOLUME", format!("{:.1} (RMS)",now_db), sec),
                                     ]{ ui.label(RichText::new(format!("{:<12}{}",l,v)).size(10.0).monospace().color(c)); }
                                 });
