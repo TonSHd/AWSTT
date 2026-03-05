@@ -9,7 +9,7 @@ It provides advanced diagnostics and signal analysis
 - Signal to sound mode
 - Live graphs and analytics
 - Fast
-- Diagnostic Tools
+- Advanced Diagnostic Tool
 
 ## Installation
 
