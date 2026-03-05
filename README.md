@@ -1,40 +1,64 @@
-# AWSTT - Advanced WiFi Statistic and Testing Tool
+# AWSTT — Advanced WiFi Statistic and Testing Tool
 
-AWSTT is a Linux tool for analyzing, testing and visualizing WiFi performance in real time.
-It provides advanced diagnostics and signal analysis
+> A Linux tool for analyzing, testing and visualizing WiFi performance in real time.  
+> Provides advanced diagnostics and signal analysis.
+
+---
 
 ## Features
-- Advanced WiFi statistics
-- Connected Device Scanner (Not so accurate yet)
-- Signal to sound mode
-- Live graphs and analytics
-- Fast
-- Advanced Diagnostic Tool
 
-## Installation
+| Feature | Description |
+|---|---|
+| **Advanced WiFi Statistics** | In-depth metrics and real-time data |
+| **Connected Device Scanner** | Scan for nearby devices *(not so accurate yet)* |
+| **Signal to Sound Mode** | Audible signal feedback |
+| **Live Graphs & Analytics** | Visualize performance in real time |
+| **Fast** | Built for speed |
+| **Advanced Diagnostic Tool** | Deep diagnostics at your fingertips |
 
-You can download the tar.gz file from releases
- 
-**Then run tar -xzf [The tar.gz from releases]**
+---
 
-### Build from source
+## 🚀 Installation
 
-**git clone https://github.com/TonSHd/AWSTT.git**
- 
-**cd AWSTT**
- 
-**cargo build --release**
+### Download from Releases
+
+1. Download the `.tar.gz` file from [Releases](../../releases)
+2. Extract it:
+
+```bash
+tar -xzf [The tar.gz from releases]
+```
+
+---
+
+### Build from Source
+
+```bash
+git clone https://github.com/TonSHd/AWSTT.git
+cd AWSTT
+cargo build --release
+```
+
+---
 
 ## Preview
 
 ![AWSTT Preview](awstt-preview1.png)
 
+---
+
+## 💛 Support 💛
+
 Made with passion for networking and open technology.
 
 If you enjoy AWSTT and would like to support its development, you can donate:
-Bitcoin (BTC) Address: bc1qz6v0tl48hpv075l0u3lww7mj4dj5xarjtkwa2x
 
-Donations are optional and do not unlock features.
-AWSTT will always remain free and open.
+**Bitcoin (BTC)**
+```
+bc1qz6v0tl48hpv075l0u3lww7mj4dj5xarjtkwa2x
+```
+
+> Donations are optional and do not unlock features.  
+> **AWSTT will always remain free and open.**
 
 Thank you and enjoy!
