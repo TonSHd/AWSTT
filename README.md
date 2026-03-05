@@ -18,7 +18,7 @@
 
 ---
 
-## 🚀 Installation
+## Installation
 
 ### Download from Releases
 
@@ -48,6 +48,8 @@ cargo run
 ![AWSTT Preview](awstt-preview1.png)
 
 ---
+
+**Some tests depend on the network interface type. Certain features may only work on wireless interfaces or wired interfaces. For example, RSSI measurements are only available on wireless interfaces.**
 
 ## 💛 Support 💛
 
