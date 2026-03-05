@@ -18,11 +18,9 @@ const MAX_HISTORY:       usize = 512;
 const WATERFALL_COLS:    usize = 120;
 const WATERFALL_ROWS:    usize = 48;
 const GRID_SIZE:         usize = 40;
-const CELL_METERS:       f64   = 0.5;
 const PATH_LOSS_N:       f64   = 2.7;
 const RSSI_AT_1M_2G:     f64   = -40.0;
 const RSSI_AT_1M_5G:     f64   = -45.0;
-const WALL_ATTEN_DB:     f64   = 8.0;
 const RMS_WINDOW:        usize = 4096;
 
 
@@ -131,7 +129,7 @@ impl Checks {
                 Check::new("JITTER",      "8.8.8.8",   "ms",   10.0, 50.0, false),
                 Check::new("HTTP CHECK",  "gstatic",   "ms",  500.0,2000.0,false),
                 Check::new("ROUTE HOPS",  "8.8.8.8",  "hops", 10.0, 20.0, false),
-                Check::new("THROUGHPUT",  "LAN avg",  "MB/s",  0.0,  0.0,  true),
+                Check::new("THROUGHPUT",  "cloudflare", "Mbps", 0.0,  0.0,  true),
                 Check::new("ERR RATE",    "iface",    "/s",   10.0,100.0,  false),
                 Check::new("SIGNAL SCORE","composite","/100",  0.0,  0.0,  true),
                 Check::new("MTU PROBE",   "gateway",  "bytes", 0.0,  0.0,  true),
@@ -176,6 +174,21 @@ impl Default for LiveStats {
 
 fn push_dq(dq: &mut VecDeque<f64>, v: f64) { dq.push_back(v); if dq.len()>MAX_HISTORY{dq.pop_front();} }
 
+fn read_wifi_rssi(iface: &str) -> Option<f64> {
+    let raw = fs::read_to_string("/proc/net/wireless").ok()?;
+    for line in raw.lines().skip(2) {
+        let t = line.trim();
+        if t.starts_with(&format!("{}:", iface)) {
+            let rest = &t[iface.len()+1..];
+            let fields: Vec<&str> = rest.split_whitespace().collect();
+            if fields.len() >= 3 {
+                return fields[2].trim_end_matches('.').parse::<f64>().ok();
+            }
+        }
+    }
+    None
+}
+
 fn bps_to_rssi(bps: f64, err: f64) -> f64 {
     let n = (bps / 125_000_000.0).clamp(0.0, 1.0);
     (-90.0 + 70.0 * n - err * 30.0).clamp(-90.0, -20.0)
@@ -184,11 +197,18 @@ fn bps_to_rssi(bps: f64, err: f64) -> f64 {
 
 fn read_iface(iface: &str) -> Option<(u64,u64,u64,u64)> {
     let raw = fs::read_to_string("/proc/net/dev").ok()?;
+    let prefix = format!("{}:", iface);
     for line in raw.lines() {
         let t = line.trim();
-        if t.starts_with(iface) {
-            let f: Vec<u64> = t[iface.len()+1..].split_whitespace().filter_map(|s|s.parse().ok()).collect();
-            if f.len()>=4 { return Some((f[0],f[1],f[2],f[3])); }
+        if t.starts_with(&prefix) {
+            let f: Vec<u64> = t[prefix.len()..].split_whitespace().filter_map(|s|s.parse().ok()).collect();
+            if f.len()>=12 {
+                let errs  = f[2].saturating_add(f[10]);
+                let drops = f[3].saturating_add(f[11]);
+                return Some((f[0], f[1], errs, drops));
+            } else if f.len()>=4 {
+                return Some((f[0],f[1],f[2],f[3]));
+            }
         }
     }
     None
@@ -301,6 +321,22 @@ fn enrich_devices(devs: &mut Vec<Peer>, wifi: &Option<String>) {
                 }
             }
         }
+        if wifi_rssi.is_empty() {
+            if let Ok(out) = Command::new("iw").args(["dev",iface,"link"]).output() {
+                let s = String::from_utf8_lossy(&out.stdout);
+                let mut bssid = String::new();
+                let mut sig   = -100.0f64;
+                for line in s.lines() {
+                    let t = line.trim();
+                    if t.starts_with("Connected to ") {
+                        bssid = t.split_whitespace().nth(2).unwrap_or("").to_lowercase();
+                    } else if t.starts_with("signal:") {
+                        sig = t.split(':').nth(1).and_then(|v|v.trim().split_whitespace().next()).and_then(|v|v.parse().ok()).unwrap_or(-100.0);
+                    }
+                }
+                if !bssid.is_empty() { wifi_rssi.insert(bssid, sig); }
+            }
+        }
     }
     for dev in devs.iter_mut() {
         if let Ok(out) = Command::new("ping").args(["-c","1","-W","1",&dev.ip]).output() {
@@ -372,22 +408,6 @@ fn assign_device_positions(
     }
     }
 
-
-    fn obstacles_in_path(
-obs: &[bool], x0:usize, y0:usize, x1:usize, y1:usize) -> usize {
-    let(mut x,mut y)=(x0 as i32, y0 as i32);
-    let(dx,dy)=((x1 as i32-x0 as i32).abs(),(y1 as i32-y0 as i32).abs());
-    let(sx,sy)=(if x<x1 as i32{1}else{-1},if y<y1 as i32{1}else{-1});
-    let mut err=dx-dy; let mut count=0;
-    loop {
-        if x==x1 as i32&&y==y1 as i32{break;}
-        if x>=0&&x<GRID_SIZE as i32&&y>=0&&y<GRID_SIZE as i32 { if obs[y as usize*GRID_SIZE+x as usize]{count+=1;} }
-        let e2=2*err;
-        if e2>-dy{err-=dy;x+=sx;}
-        if e2<dx {err+=dx;y+=sy;}
-    }
-    count
-}
 
 
 fn parse_ping_out(s: &str) -> (f64,f64,f64,f64) {
@@ -475,29 +495,10 @@ fn run_real_download_test() -> (f64, String) {
     (rate, format!("{:.1} Mbps (parallel streams)", rate))
 }
 
-fn run_real_upload_test() -> (f64, String) {
-    if let Some((_, up, src)) = run_speedtest_net() {
-        return (up, format!("{:.1} Mbps ({})", up, src));
-    }
-    let start = Instant::now();
-    let mut jobs = vec![];
-    for _ in 0..4 {
-        jobs.push(thread::spawn(move || {
-            Command::new("sh").args(["-c",
-                "dd if=/dev/urandom bs=1M count=100 2>/dev/null | curl -s -o /dev/null --max-time 30 -w '%{size_upload}' -X POST --data-binary @- https://speed.cloudflare.com/__up"
-            ]).output().ok().and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<f64>().ok()).unwrap_or(0.0)
-        }));
-    }
-    let total: f64 = jobs.into_iter().map(|j| j.join().unwrap_or(0.0)).sum();
-    let took = start.elapsed().as_secs_f64();
-    if total < 1000.0 { return (0.0, "upload failed (speedtest.net tool missing?)".into()); }
-    let rate = (total * 8.0 / took) / 1_000_000.0;
-    (rate, format!("{:.1} Mbps (parallel fallback)", rate))
-}
 
 
 fn run_test_entry(entry: Check, sig: (f64,f64)) -> (TestStatus,f64,String) {
-    let (bps_avg, errs_avg) = sig;
+    let (_, errs_avg) = sig;
     match entry.name.as_str() {
         "PING GATEWAY" => {
             let gw=get_gateway().unwrap_or_else(||"192.168.1.1".to_string());
@@ -564,8 +565,10 @@ fn run_test_entry(entry: Check, sig: (f64,f64)) -> (TestStatus,f64,String) {
             if hops>entry.fail{(TestStatus::Warn,hops,format!("{:.0} hops",hops))} else{(TestStatus::Pass,hops,format!("{:.0} hops",hops))}
         }
         "THROUGHPUT" => {
-            let mb=bps_avg/1e6;
-            if mb>1.0{(TestStatus::Pass,mb,format!("{:.2} MB/s",mb))} else{(TestStatus::Warn,mb,format!("{:.3} MB/s",mb))}
+            let (mbps, label) = run_real_download_test();
+            if mbps > 25.0 { (TestStatus::Pass, mbps, label) }
+            else if mbps > 1.0 { (TestStatus::Warn, mbps, label) }
+            else { (TestStatus::Fail, mbps, label) }
         }
         "ERR RATE" => {
             if errs_avg>entry.fail{(TestStatus::Fail,errs_avg,format!("{:.1}/s",errs_avg))}
@@ -613,7 +616,7 @@ fn spawn_network_thread(data: Arc<Mutex<LiveStats>>, speed: Arc<Mutex<f32>>, ifa
                 if first{prev=(bytes,pkts,errs,drops);first=false;continue;}
                 let db=bytes.saturating_sub(prev.0) as f64/dt; let dp=pkts.saturating_sub(prev.1) as f64/dt;
                 let de=errs.saturating_sub(prev.2) as f64/dt; let dd=drops.saturating_sub(prev.3) as f64/dt;
-                let rssi=bps_to_rssi(db,if dp>0.0{de/dp}else{0.0});
+                let rssi=read_wifi_rssi(&iface).unwrap_or_else(||bps_to_rssi(db,if dp>0.0{de/dp}else{0.0}));
                 let norm=(db/125_000_000.0).clamp(0.0,1.0);
                 wf_acc.push(norm); wf_tick+=1;
                 if wf_tick>=(10.0/sp).max(1.0) as u32 {
@@ -826,7 +829,8 @@ impl App {
         (sm(&d.bps_h),sm(&d.rssi_h),sm(&d.pps_h),sm(&d.errs_h),sm(&d.db_h))
     }
     fn is_wifi_selected(&self) -> bool {
-        self.selected_iface.lock().starts_with("wl")
+        let iface = self.selected_iface.lock().clone();
+        std::path::Path::new(&format!("/sys/class/net/{}/wireless", iface)).exists()
     }
 }
 
@@ -899,11 +903,7 @@ fn fmt_up(d:Duration)->String{let s=d.as_secs();format!("{:02}:{:02}:{:02}",s/36
 fn iso_pt(gx:f32,gy:f32,gz:f32,origin:Pos2,cw:f32,ch:f32)->Pos2 {
     Pos2::new(origin.x+(gx-gy)*cw*0.5, origin.y+(gx+gy)*ch*0.5-gz*ch)
 }
-fn paint_floor(p:&Painter,gx:f32,gy:f32,origin:Pos2,cw:f32,ch:f32,col:Color32){
-    let pts=vec![iso_pt(gx+0.5,gy,    0.0,origin,cw,ch),iso_pt(gx+1.0,gy+0.5,0.0,origin,cw,ch),
-                 iso_pt(gx+0.5,gy+1.0,0.0,origin,cw,ch),iso_pt(gx,    gy+0.5,0.0,origin,cw,ch)];
-    p.add(Shape::convex_polygon(pts,col,Stroke::NONE));
-}
+
 fn paint_block(p:&Painter,gx:f32,gy:f32,h:f32,origin:Pos2,cw:f32,ch:f32,col:Color32){
     let h=h.max(0.01);
     let top=vec![iso_pt(gx+0.5,gy,    h,origin,cw,ch),iso_pt(gx+1.0,gy+0.5,h,origin,cw,ch),
@@ -1182,7 +1182,7 @@ impl eframe::App for App {
                 ui.horizontal(|ui|{
                     stat_tile(ui,"Network Flow",&fmt_bps(now_bps),&if self.show_peaks{format!("peak {}",fmt_bps(pk_bps))}else{String::new()},pri);
                     ui.add_space(3.0);
-                    stat_tile(ui,"Health(NOT FOR LAN)",&format!("{:.1} dBm",now_rssi),&if self.show_peaks{format!("peak {:.1}",pk_rssi)}else{String::new()},sec);
+                    stat_tile(ui,"Signal (RSSI)",&format!("{:.1} dBm",now_rssi),&if self.show_peaks{format!("peak {:.1}",pk_rssi)}else{String::new()},sec);
                     ui.add_space(3.0);
                     stat_tile(ui,"Packets",&format!("{:.0}",now_pps),"/sec",acc);
                     ui.add_space(3.0);
@@ -1202,7 +1202,7 @@ impl eframe::App for App {
                                 ui.set_width(lw);
                                 card(ui,Color32::from_rgb(14,20,34),|ui|{line_chart(ui,"bps","Network Traffic Flow",&bps,pri,ch,0.0,None,self.log_scale);});
                                 ui.add_space(4.0);
-                                card(ui,Color32::from_rgb(14,20,34),|ui|{line_chart(ui,"rssi","Signal Strength Over Time",&rssi,sec,ch,-90.0,Some(-20.0),false);});
+                                card(ui,Color32::from_rgb(14,20,34),|ui|{line_chart(ui,"rssi","Signal Strength (RSSI)",&rssi,sec,ch,-90.0,Some(-20.0),false);});
                                 ui.add_space(4.0);
                                 card(ui,Color32::from_rgb(14,20,34),|ui|{
                                     dual_line_chart(ui,"pps","Packets & Stability",&pps,acc,&errs,Color32::from_rgb(215,65,50),ch);
@@ -1331,7 +1331,7 @@ impl eframe::App for App {
                                         ui.label(RichText::new("Visual Network Map").size(10.0).color(Color32::from_rgb(85,106,138)));
                                         ui.add_space(2.0);
                                         ui.horizontal(|ui|{
-                                            ui.label(RichText::new("Heigher means stronger signal").size(9.0).monospace().color(Color32::from_rgb(55,70,92)));
+                                            ui.label(RichText::new("Higher means stronger signal").size(9.0).monospace().color(Color32::from_rgb(55,70,92)));
                                             ui.add_space(8.0);
                                             let wc=acc; let lc=sec;
                                             let(wr,_)=ui.allocate_exact_size(Vec2::new(10.0,10.0),egui::Sense::hover()); ui.painter_at(wr).rect_filled(wr,Rounding::same(1.0),wc);
