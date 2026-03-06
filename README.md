@@ -51,6 +51,9 @@ cargo run
 
 **Some tests depend on the network interface type. Certain features may only work on wireless interfaces or wired interfaces. For example, RSSI measurements are only available on wireless interfaces.**
 
+**It's possible to found some bugs in here**
+**Feedback are Welcome!**
+
 ## 💛 Support 💛
 
 Made with passion for networking and open technology.
